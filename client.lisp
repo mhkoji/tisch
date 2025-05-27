@@ -10,13 +10,12 @@
                                      (client-version client)))
 
 (defun send-msg-keyinit (client keyinit)
-  (let ((stream (client-stream client)))
-    (let ((payload (flexi-streams:with-output-to-sequence (seq-stream)
-                     (tisch.transport::write-msg-keyinit seq-stream keyinit))))
-      (tisch.transport::write-packet stream payload))
-    (force-output stream)))
+  (let ((packet (tisch.msg::create-packet
+                 (tisch.transport::msg-keyinit->payload keyinit))))
+    (let ((stream (client-stream client)))
+      (tisch.transport::write-packet stream packet)
+      (force-output stream))))
 
 (defun recv-msg-keyinit (client)
-  (let ((octets (tisch.transport::read-packet (client-stream client))))
-    (flexi-streams:with-input-from-sequence (seq-stream octets)
-      (tisch.transport::read-msg-keyinit seq-stream))))
+  (let ((packet (tisch.transport::read-packet (client-stream client))))
+    (tisch.transport::payload->msg-keyinit (tisch.msg::packet-payload packet))))

@@ -60,6 +60,21 @@
         (let ((string (read-string octet-stream length)))
           (cl-ppcre:split "," string)))))
 
+(defun write-packet (octet-stream packet)
+  (write-uint32 octet-stream (tisch.msg::packet-length packet))
+  (write-byte   octet-stream (tisch.msg::packet-padding-length packet))
+  (write-bytes  octet-stream (tisch.msg::packet-payload packet))
+  (write-bytes  octet-stream (tisch.msg::packet-padding packet)))
+
+(defun read-packet (octet-stream)
+  (let* ((packet-length (read-uint32 octet-stream))
+         (packet        (read-bytes  octet-stream packet-length)))
+    (let ((padding-length (aref packet 0)))
+      (tisch.msg::make-packet
+       :length packet-length
+       :payload (subseq packet 1 (- packet-length padding-length))
+       :padding (subseq packet (- packet-length padding-length))))))
+
 
 (defmacro with-first-arg (defs first-arg &body body)
   `(macrolet ,(mapcar (lambda (def)
@@ -70,26 +85,6 @@
                                     'args)))
                defs)
      ,@body))
-
-(defun write-packet (octet-stream payload)
-  (let* ((block-size 8)
-         (minimum-padding-length 4)
-         (payload-length (length payload))
-         (reminder (rem (+ 1 4 payload-length)
-                        block-size))
-         (padding-length (if (> reminder (- block-size minimum-padding-length))
-                               (- (* block-size 2) reminder)
-                               (- block-size reminder))))
-    (write-uint32 octet-stream (+ payload-length padding-length 1))
-    (write-byte   octet-stream (logand padding-length #xFF))
-    (write-bytes  octet-stream payload)
-    (write-bytes  octet-stream (make-array padding-length))))
-
-(defun read-packet (octet-stream)
-  (let* ((packet-length (read-uint32 octet-stream))
-         (packet        (read-bytes  octet-stream packet-length)))
-    (let ((padding-length (aref packet 0)))
-      (subseq packet 1 (- packet-length padding-length)))))
 
 (defun write-msg-keyinit (octet-stream keyinit)
   (with-first-arg ((.name-list write-name-list)
@@ -132,6 +127,14 @@
    :languages-client-to-server              (.name-list)
    :languages-server-to-client              (.name-list)
    :first-kex-packet-follows                (.boolean))))
+
+(defun msg-keyinit->payload (keyinit)
+  (flexi-streams:with-output-to-sequence (octet-stream)
+    (write-msg-keyinit octet-stream keyinit)))
+
+(defun payload->msg-keyinit (payload)
+  (flexi-streams:with-input-from-sequence (octet-stream payload)
+    (read-msg-keyinit octet-stream)))
 
 
 (defun send-client-version (octet-stream client-version)
