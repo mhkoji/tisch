@@ -139,7 +139,7 @@
 
 (defun send-client-version (octet-stream client-version)
   (let ((octets (babel:string-to-octets
-                 (format nil "~A~A~A" client-version #\Linefeed #\Return))))
+                 (format nil "~A~A~A" client-version #\Return #\Linefeed))))
     (write-sequence octets octet-stream)
     (force-output octet-stream)))
 
