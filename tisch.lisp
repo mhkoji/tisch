@@ -27,8 +27,8 @@
      client
      (tisch.msg::make-keyinit
       :cookie #(0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15)
-      :kex-algorithms (list "diffie-hellman-group1-sha1")
-      :server-host-key-algorithms (list "ssh-rsa")
+      :kex-algorithms (list "diffie-hellman-group14-sha256")
+      :server-host-key-algorithms (list "rsa-sha2-256")
       :encryption-algorithms-client-to-server (list "aes128-ctr")
       :encryption-algorithms-server-to-client (list "aes128-ctr")
       :mac-algorithms-client-to-server (list "hmac-sha1")
