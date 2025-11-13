@@ -48,6 +48,14 @@
           for byte = (aref seq (- 3 i))
           sum (ash byte (* 8 i)))))
 
+(defun write-uint (octet-stream uint count)
+  (let ((seq (make-array count :element-type '(unsigned-byte 8)))
+        (end-index (1- count)))
+    (loop for i from 0 to end-index
+          for byte = (logand (ash uint (* -8 i)) #xFF)
+          do (setf (aref seq (- end-index i)) byte))
+    (write-sequence seq octet-stream)))
+
 (defun write-name-list (octet-stream string-list)
   (let ((string (format nil "~{~a~^,~}" string-list)))
     (write-uint32 octet-stream (length string))
@@ -59,6 +67,27 @@
         nil
         (let ((string (read-string octet-stream length)))
           (cl-ppcre:split "," string)))))
+
+(defun write-mpint-positive (octet-stream int count)
+  (write-uint octet-stream count 4)
+  (write-uint octet-stream int count))
+
+(defun write-mpint (octet-stream int)
+  (if (<= 0 int)
+      (let ((count (loop for i from 0
+                         when (= 0 (ash int (* -8 i)))
+                           return i)))
+        (if (logbitp (1- (* 8 count)) int)
+            (write-mpint-positive octet-stream int (1+ count))
+            (write-mpint-positive octet-stream int count)))
+      (destructuring-bind (count . inverted)
+          (loop for i from 1
+                for val = #x100 then (ash val 8)
+                for inverted = (+ val int)
+                when (and (< 0 inverted)
+                          (logbitp (1- (* 8 i)) inverted))
+                  return (cons i inverted))
+        (write-mpint-positive octet-stream inverted count))))
 
 (defun write-packet (octet-stream packet)
   (write-uint32 octet-stream (tisch.msg::packet-length packet))
