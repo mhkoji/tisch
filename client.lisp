@@ -25,7 +25,7 @@
                  (tisch.transport::msg-keyinit->payload keyinit))))
     (write-packet client packet)))
 
-(defun recv-msg-keyinit (client)
+(defun recv-msg (client)
   (let ((packet (read-packet client)))
     (let ((payload (tisch.msg::packet-payload packet)))
-      (tisch.transport::payload->msg-keyinit payload))))
+      (tisch.transport::payload->msg payload))))

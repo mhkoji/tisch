@@ -38,5 +38,4 @@
       :languages-client-to-server nil
       :languages-server-to-client nil
       :first-kex-packet-follows nil))
-    (print (tisch.client::recv-msg-keyinit
-            client))))
+    (print (tisch.client::recv-msg client))))
