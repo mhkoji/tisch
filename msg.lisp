@@ -16,6 +16,11 @@
   languages-server-to-client
   first-kex-packet-follows)
 
+(defstruct kexdh-reply
+  host-key-and-certificates
+  f
+  signature-of-H)
+
 (defstruct packet
   length
   payload

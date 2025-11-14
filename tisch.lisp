@@ -38,4 +38,12 @@
       :languages-client-to-server nil
       :languages-server-to-client nil
       :first-kex-packet-follows nil))
-    (print (tisch.client::recv-msg client))))
+    (print (tisch.client::recv-msg client))
+    (tisch.client::send-msg-kexdh-init
+     client
+     (tisch.dh::gen tisch.dh::*modp-2048*))
+    (tisch.client::recv-msg client)
+    #+nil
+    (loop for byte = (read-byte
+                      (tisch.client::client-stream client))
+          while byte do (print byte))))

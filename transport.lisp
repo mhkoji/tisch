@@ -25,15 +25,6 @@
 (defun read-boolean (octet-stream)
   (= (read-byte octet-stream) 1))
 
-(defun write-string (octet-stream string)
-  (write-sequence (babel:string-to-octets string :encoding :utf-8)
-                  octet-stream))
-
-(defun read-string (octet-stream length)
-  (let ((seq (make-array length :element-type '(unsigned-byte 8))))
-    (read-sequence seq octet-stream)
-    (babel:octets-to-string seq :encoding :utf-8)))
-
 (defun write-uint32 (octet-stream integer)
   (let ((seq (make-array 4 :element-type '(unsigned-byte 8))))
     (loop for i from 3 downto 0
@@ -56,17 +47,25 @@
           do (setf (aref seq (- end-index i)) byte))
     (write-sequence seq octet-stream)))
 
+(defun write-string (octet-stream octets)
+  (write-uint32 octet-stream (length octets))
+  (write-sequence octets octet-stream))
+
+(defun read-string (octet-stream)
+  (let ((length (read-uint32 octet-stream)))
+    (let ((seq (make-array length :element-type '(unsigned-byte 8))))
+      (read-sequence seq octet-stream)
+      seq)))
+
 (defun write-name-list (octet-stream string-list)
   (let ((string (format nil "~{~a~^,~}" string-list)))
-    (write-uint32 octet-stream (length string))
-    (write-string octet-stream string)))
+    (let ((octets (babel:string-to-octets string :encoding :utf-8)))
+      (write-string octet-stream octets))))
 
 (defun read-name-list (octet-stream)
-  (let ((length (read-uint32 octet-stream)))
-    (if (= length 0)
-        nil
-        (let ((string (read-string octet-stream length)))
-          (cl-ppcre:split "," string)))))
+  (let ((octets (read-string octet-stream)))
+    (let ((string (babel:octets-to-string octets :encoding :utf-8)))
+      (cl-ppcre:split "," string))))
 
 (defun write-mpint-positive (octet-stream int count)
   (write-uint octet-stream count 4)
@@ -88,6 +87,10 @@
                           (logbitp (1- (* 8 i)) inverted))
                   return (cons i inverted))
         (write-mpint-positive octet-stream inverted count))))
+
+(defun read-mpint (octet-stream)
+  (let ((count (read-uint32 octet-stream)))
+    (read-bytes octet-stream count)))
 
 (defun write-packet (octet-stream packet)
   (write-uint32 octet-stream (tisch.msg::packet-length packet))
@@ -114,7 +117,8 @@
                         (:bytes 'write-bytes)
                         (:name-list 'write-name-list)
                         (:boolean 'write-boolean)
-                        (:uint32 'write-uint32))
+                        (:uint32 'write-uint32)
+                        (:mpint 'write-mpint))
                      ,stream ,@args)))
                clauses)))
 
@@ -124,9 +128,11 @@
                        '(ecase key
                          (:byte 'read-byte)
                          (:bytes 'read-bytes)
+                         (:uint32 'read-uint32)
+                         (:mpint 'read-mpint)
+                         (:string 'read-string)
                          (:name-list 'read-name-list)
-                         (:boolean 'read-boolean)
-                         (:uint32 'read-uint32))
+                         (:boolean 'read-boolean))
                        (list 'quote stream)
                        'args)))
      ,@body))
@@ -169,16 +175,34 @@
       (assert (= reserved 0))
       keyinit)))
 
+(defun write-msg-kexdh-init (octet-stream e)
+  (do-write octet-stream
+    (:byte  30)
+    (:mpint e)))
+
+(defun read-msg-kexdh-reply (octet-stream)
+  (with-reader (r octet-stream)
+    (tisch.msg::make-kexdh-reply
+     :host-key-and-certificates (r :string)
+     :f                         (r :mpint)
+     :signature-of-h            (r :string))))
+
 (defun read-msg (octet-stream)
   (let ((type (read-byte octet-stream)))
     (cond ((= type 20)
            (read-msg-keyinit octet-stream))
+          ((= type 31)
+           (read-msg-kexdh-reply octet-stream))
           (t
            (error "invalid type: ~A" type)))))
 
 (defun msg-keyinit->payload (keyinit)
   (flexi-streams:with-output-to-sequence (octet-stream)
     (write-msg-keyinit octet-stream keyinit)))
+
+(defun msg-kexdh-init->payload (e)
+  (flexi-streams:with-output-to-sequence (octet-stream)
+    (write-msg-kexdh-init octet-stream e)))
 
 (defun payload->msg (payload)
   (flexi-streams:with-input-from-sequence (octet-stream payload)

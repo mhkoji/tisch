@@ -9,7 +9,7 @@
                                      (client-stream client)
                                      (client-version client)))
 
-(defun write-packet (client packet)
+(defun send-packet (client packet)
   ;; (format *debug-io* "Written: ~A ~%" packet)
   (let ((stream (client-stream client)))
     (tisch.transport::write-packet stream packet)
@@ -23,7 +23,12 @@
 (defun send-msg-keyinit (client keyinit)
   (let ((packet (tisch.msg::create-packet
                  (tisch.transport::msg-keyinit->payload keyinit))))
-    (write-packet client packet)))
+    (send-packet client packet)))
+
+(defun send-msg-kexdh-init (client e)
+  (let ((packet (tisch.msg::create-packet
+                 (tisch.transport::msg-kexdh-init->payload e))))
+    (send-packet client packet)))
 
 (defun recv-msg (client)
   (let ((packet (read-packet client)))
