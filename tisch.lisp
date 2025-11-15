@@ -59,6 +59,8 @@
                   :V-S server-version
                   :I-C (tisch.transport::msg->payload client-keyinit)
                   :I-S (tisch.transport::msg->payload server-keyinit)
+                  :K-S (tisch.msg::kexdh-reply-host-key-and-certificates-octets
+                        server-kexdh-reply)
                   :e e
                   :f f
                   :K (tisch.dh::calculate-K dh f x))))))

@@ -215,16 +215,19 @@
            (error "unknown format: ~A" format)))))
 
 (defun read-msg-kexdh-reply (octet-stream)
-  (tisch.msg::make-kexdh-reply
-   :host-key-and-certificates
-   (let ((octets (read-string octet-stream)))
-     (flexi-streams:with-input-from-sequence (s octets)
-       (read-certificates s)))
-   :f (read-mpint octet-stream)
-   :signature-of-h
-   (let ((octets (read-string octet-stream)))
-     (flexi-streams:with-input-from-sequence (s octets)
-       (read-signature s)))))
+  (let* ((host-key-and-certificates-octets (read-string octet-stream)))
+    (tisch.msg::make-kexdh-reply
+     :host-key-and-certificates
+     (flexi-streams:with-input-from-sequence
+         (s host-key-and-certificates-octets)
+       (read-certificates s))
+     :host-key-and-certificates-octets
+     host-key-and-certificates-octets
+     :f (read-mpint octet-stream)
+     :signature-of-h
+     (let ((octets (read-string octet-stream)))
+       (flexi-streams:with-input-from-sequence (s octets)
+         (read-signature s))))))
 
 (defgeneric write-msg (msg octet-stream))
 

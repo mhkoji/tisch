@@ -21,6 +21,7 @@
 
 (defstruct kexdh-reply
   host-key-and-certificates
+  host-key-and-certificates-octets
   f
   signature-of-H)
 
