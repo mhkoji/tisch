@@ -52,9 +52,17 @@
          client
          (tisch.msg::make-kexdh-init :e e))
         (let* ((server-kexdh-reply (tisch.client::recv-msg client))
-               (f (tisch.msg::kexdh-reply-f server-kexdh-reply)))
+               (f
+                (tisch.msg::kexdh-reply-f server-kexdh-reply))
+               (signature
+                (tisch.msg::kexdh-reply-signature-of-h
+                 server-kexdh-reply))
+               (certificates
+                (tisch.msg::kexdh-reply-host-key-and-certificates
+                 server-kexdh-reply)))
           (print server-kexdh-reply)
-          (print (tisch.dh::exchange-hash
+          (let ((exchange-hash
+                 (tisch.dh::exchange-hash
                   :V-C *client-version*
                   :V-S server-version
                   :I-C (tisch.transport::msg->payload client-kexinit)
@@ -63,7 +71,14 @@
                         server-kexdh-reply)
                   :e e
                   :f f
-                  :K (tisch.dh::calculate-K dh f x))))))
+                  :K (tisch.dh::calculate-K dh f x))))
+            (tisch.dh::verify
+             exchange-hash
+              (tisch.msg::rsa-sha-signature-blob
+               signature)
+              (tisch.msg::ssh-rsa-e certificates)
+              (tisch.msg::ssh-rsa-n certificates)))
+          (values))))
     #+nil
     (loop for byte = (read-byte
                       (tisch.client::client-stream client))

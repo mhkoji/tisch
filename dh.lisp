@@ -54,13 +54,48 @@
   (let ((digest (ironclad:make-digest 'ironclad:sha256)))
     (ironclad:digest-sequence digest seq)))
 
+(defun os2ip (octets)
+  (let ((length (length octets)))
+    (loop for i from 0 below length
+          sum (* (aref octets i)
+                 (expt 256 (- length (1+ i)))))))
+
+(defun i2osp (uint length)
+  (let ((seq (make-array length)))
+    (loop for i from (1- length) downto 0
+          for value = uint then (floor value 256)
+          for rem = (rem value 256)
+          do (setf (aref seq i) rem))
+    seq))
+
+(defun verify (message signature e n)
+  (let* ((s (os2ip signature))
+         (m (mod-expt s e n))
+         (em (i2osp m (length signature))))
+    (assert (= (aref em 0) 0))
+    (assert (= (aref em 1) 1))
+    (loop for i from 2 to 331
+          do (assert (= (aref em i) #xFF)))
+    (assert (= (aref em 332) 0))
+    (let ((identifier (subseq em 333 352)))
+      (assert (equalp identifier
+                      #(#x30 #x31 #x30 #x0D
+                        #x06 #x09 #x60 #x86
+                        #x48 #x01 #x65 #x03
+                        #x04 #x02 #x01 #x05
+                        #x00 #x04 #x20))))
+    (print (list (sha256 message)
+                 (subseq em 352)))
+    (assert (equalp (sha256 message)
+                    (subseq em 352)))))
+
 (defun exchange-hash (&key V-C V-S I-C I-S K-S e f K)
   (let ((seq (flexi-streams:with-output-to-sequence (out-stream)
-               (write-sequence (babel:string-to-octets V-C) out-stream)
-               (write-sequence (babel:string-to-octets V-S) out-stream)
-               (write-sequence I-C out-stream)
-               (write-sequence I-S out-stream)
-               (write-sequence K-S out-stream)
+               (tisch.transport::write-string out-stream (babel:string-to-octets V-C))
+               (tisch.transport::write-string out-stream (babel:string-to-octets V-S))
+               (tisch.transport::write-string out-stream I-C)
+               (tisch.transport::write-string out-stream I-S)
+               (tisch.transport::write-string out-stream K-S)
                (tisch.transport::write-mpint out-stream e)
                (tisch.transport::write-mpint out-stream f)
                (tisch.transport::write-mpint out-stream K))))
