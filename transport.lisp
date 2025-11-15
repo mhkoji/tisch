@@ -47,6 +47,15 @@
           do (setf (aref seq (- end-index i)) byte))
     (write-sequence seq octet-stream)))
 
+(defun read-uint (octet-stream count)
+  (let ((seq (make-array count :element-type '(unsigned-byte 8)))
+        (end-index (1- count)))
+    (read-sequence seq octet-stream)
+    ;; todo: negative value
+    (loop for i from 0 to end-index
+          for byte = (aref seq (- end-index i))
+          sum (ash byte (* 8 i)))))
+
 (defun write-string (octet-stream octets)
   (write-uint32 octet-stream (length octets))
   (write-sequence octets octet-stream))
@@ -90,7 +99,7 @@
 
 (defun read-mpint (octet-stream)
   (let ((count (read-uint32 octet-stream)))
-    (read-bytes octet-stream count)))
+    (read-uint octet-stream count)))
 
 (defun write-packet (octet-stream packet)
   (write-uint32 octet-stream (tisch.msg::packet-length packet))
