@@ -22,14 +22,14 @@
 (defun run ()
   (with-client (client "localhost" 22)
     (let ((server-version nil)
-          (server-keyinit nil)
-          (client-keyinit nil)
+          (server-kexinit nil)
+          (client-kexinit nil)
           (dh tisch.dh::*modp-2048*))
       (setq server-version
             (tisch.client::exchange-version client))
       (print server-version)
-      (setq client-keyinit
-            (tisch.msg::make-keyinit
+      (setq client-kexinit
+            (tisch.msg::make-kexinit
              :cookie #(0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15)
              :kex-algorithms (list "diffie-hellman-group14-sha256")
              :server-host-key-algorithms (list "rsa-sha2-256")
@@ -42,10 +42,10 @@
              :languages-client-to-server nil
              :languages-server-to-client nil
              :first-kex-packet-follows nil))
-      (tisch.client::send-msg client client-keyinit)
-      (setq server-keyinit
+      (tisch.client::send-msg client client-kexinit)
+      (setq server-kexinit
             (tisch.client::recv-msg client))
-      (print server-keyinit)
+      (print server-kexinit)
       (destructuring-bind (e x)
           (tisch.dh::calculate-e dh)
         (tisch.client::send-msg
@@ -57,8 +57,8 @@
           (print (tisch.dh::exchange-hash
                   :V-C *client-version*
                   :V-S server-version
-                  :I-C (tisch.transport::msg->payload client-keyinit)
-                  :I-S (tisch.transport::msg->payload server-keyinit)
+                  :I-C (tisch.transport::msg->payload client-kexinit)
+                  :I-S (tisch.transport::msg->payload server-kexinit)
                   :K-S (tisch.msg::kexdh-reply-host-key-and-certificates-octets
                         server-kexdh-reply)
                   :e e

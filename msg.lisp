@@ -2,7 +2,7 @@
   (:use :cl))
 (in-package :tisch.msg)
 
-(defstruct keyinit
+(defstruct kexinit
   cookie
   kex-algorithms
   server-host-key-algorithms

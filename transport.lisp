@@ -157,27 +157,27 @@
      ,@body))
 
 
-(defun write-msg-keyinit (octet-stream keyinit)
+(defun write-msg-kexinit (octet-stream kexinit)
   (do-write octet-stream
     (:byte      20)
-    (:bytes     (tisch.msg::keyinit-cookie keyinit))
-    (:name-list (tisch.msg::keyinit-kex-algorithms keyinit))
-    (:name-list (tisch.msg::keyinit-server-host-key-algorithms keyinit))
-    (:name-list (tisch.msg::keyinit-encryption-algorithms-client-to-server keyinit))
-    (:name-list (tisch.msg::keyinit-encryption-algorithms-server-to-client keyinit))
-    (:name-list (tisch.msg::keyinit-mac-algorithms-client-to-server keyinit))
-    (:name-list (tisch.msg::keyinit-mac-algorithms-server-to-client keyinit))
-    (:name-list (tisch.msg::keyinit-compression-algorithms-client-to-server keyinit))
-    (:name-list (tisch.msg::keyinit-compression-algorithms-server-to-client keyinit))
-    (:name-list (tisch.msg::keyinit-languages-client-to-server keyinit))
-    (:name-list (tisch.msg::keyinit-languages-server-to-client keyinit))
-    (:boolean   (tisch.msg::keyinit-first-kex-packet-follows keyinit))
+    (:bytes     (tisch.msg::kexinit-cookie kexinit))
+    (:name-list (tisch.msg::kexinit-kex-algorithms kexinit))
+    (:name-list (tisch.msg::kexinit-server-host-key-algorithms kexinit))
+    (:name-list (tisch.msg::kexinit-encryption-algorithms-client-to-server kexinit))
+    (:name-list (tisch.msg::kexinit-encryption-algorithms-server-to-client kexinit))
+    (:name-list (tisch.msg::kexinit-mac-algorithms-client-to-server kexinit))
+    (:name-list (tisch.msg::kexinit-mac-algorithms-server-to-client kexinit))
+    (:name-list (tisch.msg::kexinit-compression-algorithms-client-to-server kexinit))
+    (:name-list (tisch.msg::kexinit-compression-algorithms-server-to-client kexinit))
+    (:name-list (tisch.msg::kexinit-languages-client-to-server kexinit))
+    (:name-list (tisch.msg::kexinit-languages-server-to-client kexinit))
+    (:boolean   (tisch.msg::kexinit-first-kex-packet-follows kexinit))
     (:uint32    0)))
 
-(defun read-msg-keyinit (octet-stream)
+(defun read-msg-kexinit (octet-stream)
   (with-reader (r octet-stream)
-    (let ((keyinit
-           (tisch.msg::make-keyinit
+    (let ((kexinit
+           (tisch.msg::make-kexinit
             :cookie                                  (r :bytes 16)
             :kex-algorithms                          (r :name-list)
             :server-host-key-algorithms              (r :name-list)
@@ -192,7 +192,7 @@
             :first-kex-packet-follows                (r :boolean)))
           (reserved (r :uint32)))
       (assert (= reserved 0))
-      keyinit)))
+      kexinit)))
 
 (defun write-msg-kexdh-init (octet-stream kexdh-init)
   (do-write octet-stream
@@ -231,9 +231,9 @@
 
 (defgeneric write-msg (msg octet-stream))
 
-(defmethod write-msg ((msg tisch.msg::keyinit)
+(defmethod write-msg ((msg tisch.msg::kexinit)
                       octet-stream)
-  (write-msg-keyinit octet-stream msg))
+  (write-msg-kexinit octet-stream msg))
 
 (defmethod write-msg ((msg tisch.msg::kexdh-init)
                       octet-stream)
@@ -247,7 +247,7 @@
 (defun read-msg (octet-stream)
   (let ((type (read-byte octet-stream)))
     (cond ((= type 20)
-           (read-msg-keyinit octet-stream))
+           (read-msg-kexinit octet-stream))
           ((= type 31)
            (read-msg-kexdh-reply octet-stream))
           (t
