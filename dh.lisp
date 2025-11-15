@@ -47,12 +47,12 @@
          (e (mod-expt g x p)))
     (list e x)))
 
-(let ((digest (ironclad:make-digest 'ironclad:sha256)))
-  (defun sha256 (seq)
-    (ironclad:digest-sequence digest seq)))
-
 (defun calculate-K (dh f x)
   (mod-expt f x (dh-prime dh)))
+
+(defun sha256 (seq)
+  (let ((digest (ironclad:make-digest 'ironclad:sha256)))
+    (ironclad:digest-sequence digest seq)))
 
 (defun exchange-hash (&key V-C V-S I-C I-S K-S e f K)
   (let ((seq (flexi-streams:with-output-to-sequence (out-stream)
