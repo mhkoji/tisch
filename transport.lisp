@@ -101,6 +101,16 @@
     ;; todo: negative value
     (read-uint octet-stream count)))
 
+(defun read-ssh-rsa (octet-stream)
+  (tisch.msg::make-ssh-rsa
+   :e (read-mpint octet-stream)
+   :n (read-mpint octet-stream)))
+
+(defun read-rsa-sha-signature (octet-stream format)
+  (tisch.msg::make-rsa-sha-signature
+   :blob (read-string octet-stream)
+   :format format))
+
 (defun write-packet (octet-stream packet)
   (write-uint32 octet-stream (tisch.msg::packet-length packet))
   (write-byte   octet-stream (tisch.msg::packet-padding-length packet))
@@ -189,13 +199,32 @@
     (:byte  30)
     (:mpint (tisch.msg::kexdh-init-e kexdh-init))))
 
-(defun read-msg-kexdh-reply (octet-stream)
-  (with-reader (r octet-stream)
-    (tisch.msg::make-kexdh-reply
-     :host-key-and-certificates (r :string)
-     :f                         (r :mpint)
-     :signature-of-h            (r :string))))
 
+(defun read-certificates (octet-stream)
+  (let ((format (babel:octets-to-string (read-string octet-stream))))
+    (cond ((string= format "ssh-rsa")
+           (read-ssh-rsa octet-stream))
+          (t
+           (error "unknown format: ~A" format)))))
+
+(defun read-signature (octet-stream)
+  (let ((format (babel:octets-to-string (read-string octet-stream))))
+    (cond ((string= format "rsa-sha2-256")
+           (read-rsa-sha-signature octet-stream :rsa-sha2-256))
+          (t
+           (error "unknown format: ~A" format)))))
+
+(defun read-msg-kexdh-reply (octet-stream)
+  (tisch.msg::make-kexdh-reply
+   :host-key-and-certificates
+   (let ((octets (read-string octet-stream)))
+     (flexi-streams:with-input-from-sequence (s octets)
+       (read-certificates s)))
+   :f (read-mpint octet-stream)
+   :signature-of-h
+   (let ((octets (read-string octet-stream)))
+     (flexi-streams:with-input-from-sequence (s octets)
+       (read-signature s)))))
 
 (defgeneric write-msg (msg octet-stream))
 

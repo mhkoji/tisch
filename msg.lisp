@@ -24,6 +24,14 @@
   f
   signature-of-H)
 
+(defstruct ssh-rsa
+  e
+  n)
+
+(defstruct rsa-sha-signature
+  blob
+  format)
+
 (defstruct packet
   length
   payload
