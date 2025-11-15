@@ -5,6 +5,20 @@
            :write-string))
 (in-package :tisch.transport)
 
+(defun sequence->uint (seq length)
+  (let ((end-index (1- length)))
+    (loop for i from 0 to end-index
+          for byte = (aref seq (- end-index i))
+          sum (ash byte (* 8 i)))))
+
+(defun uint->sequence (uint length)
+  (let ((seq (make-array length :element-type '(unsigned-byte 8)))
+        (end-index (1- length)))
+    (loop for i from 0 to end-index
+          for byte = (logand (ash uint (* -8 i)) #xFF)
+          do (setf (aref seq (- end-index i)) byte))
+    seq))
+
 (defun write-byte (octet-stream value)
   (cl:write-byte value octet-stream))
 
@@ -25,36 +39,21 @@
 (defun read-boolean (octet-stream)
   (= (read-byte octet-stream) 1))
 
-(defun write-uint32 (octet-stream integer)
-  (let ((seq (make-array 4 :element-type '(unsigned-byte 8))))
-    (loop for i from 3 downto 0
-          for byte = (logand (ash integer (* -8 i)) #xFF)
-          do (setf (aref seq (- 3 i)) byte))
-    (write-sequence seq octet-stream)))
+(defun write-uint32 (octet-stream uint)
+  (write-sequence (uint->sequence uint 4) octet-stream))
 
 (defun read-uint32 (octet-stream)
   (let ((seq (make-array 4 :element-type '(unsigned-byte 8))))
     (read-sequence seq octet-stream)
-    (loop for i from 3 downto 0
-          for byte = (aref seq (- 3 i))
-          sum (ash byte (* 8 i)))))
+    (sequence->uint seq 4)))
 
 (defun write-uint (octet-stream uint count)
-  (let ((seq (make-array count :element-type '(unsigned-byte 8)))
-        (end-index (1- count)))
-    (loop for i from 0 to end-index
-          for byte = (logand (ash uint (* -8 i)) #xFF)
-          do (setf (aref seq (- end-index i)) byte))
-    (write-sequence seq octet-stream)))
+  (write-sequence (uint->sequence uint count) octet-stream))
 
 (defun read-uint (octet-stream count)
-  (let ((seq (make-array count :element-type '(unsigned-byte 8)))
-        (end-index (1- count)))
+  (let ((seq (make-array count :element-type '(unsigned-byte 8))))
     (read-sequence seq octet-stream)
-    ;; todo: negative value
-    (loop for i from 0 to end-index
-          for byte = (aref seq (- end-index i))
-          sum (ash byte (* 8 i)))))
+    (sequence->uint seq count)))
 
 (defun write-string (octet-stream octets)
   (write-uint32 octet-stream (length octets))
@@ -99,6 +98,7 @@
 
 (defun read-mpint (octet-stream)
   (let ((count (read-uint32 octet-stream)))
+    ;; todo: negative value
     (read-uint octet-stream count)))
 
 (defun write-packet (octet-stream packet)
