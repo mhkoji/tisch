@@ -20,15 +20,10 @@
     ;; (format *debug-io* "Read: ~A ~%" packet)
     packet))
 
-(defun send-msg-keyinit (client keyinit)
-  (let ((packet (tisch.msg::create-packet
-                 (tisch.transport::msg-keyinit->payload keyinit))))
-    (send-packet client packet)))
-
-(defun send-msg-kexdh-init (client e)
-  (let ((packet (tisch.msg::create-packet
-                 (tisch.transport::msg-kexdh-init->payload e))))
-    (send-packet client packet)))
+(defun send-msg (client msg)
+  (let ((payload (tisch.transport::msg->payload msg)))
+    (let ((packet (tisch.msg::create-packet payload)))
+      (send-packet client packet))))
 
 (defun recv-msg (client)
   (let ((packet (read-packet client)))

@@ -23,7 +23,7 @@
   (with-client (client "localhost" 22)
     (tisch.client::exchange-version
      client)
-    (tisch.client::send-msg-keyinit
+    (tisch.client::send-msg
      client
      (tisch.msg::make-keyinit
       :cookie #(0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15)
@@ -39,9 +39,10 @@
       :languages-server-to-client nil
       :first-kex-packet-follows nil))
     (print (tisch.client::recv-msg client))
-    (tisch.client::send-msg-kexdh-init
+    (tisch.client::send-msg
      client
-     (tisch.dh::gen tisch.dh::*modp-2048*))
+     (tisch.msg::make-kexdh-init
+      :e (tisch.dh::gen tisch.dh::*modp-2048*)))
     (tisch.client::recv-msg client)
     #+nil
     (loop for byte = (read-byte

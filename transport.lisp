@@ -175,10 +175,10 @@
       (assert (= reserved 0))
       keyinit)))
 
-(defun write-msg-kexdh-init (octet-stream e)
+(defun write-msg-kexdh-init (octet-stream kexdh-init)
   (do-write octet-stream
     (:byte  30)
-    (:mpint e)))
+    (:mpint (tisch.msg::kexdh-init-e kexdh-init))))
 
 (defun read-msg-kexdh-reply (octet-stream)
   (with-reader (r octet-stream)
@@ -186,6 +186,22 @@
      :host-key-and-certificates (r :string)
      :f                         (r :mpint)
      :signature-of-h            (r :string))))
+
+
+(defgeneric write-msg (msg octet-stream))
+
+(defmethod write-msg ((msg tisch.msg::keyinit)
+                      octet-stream)
+  (write-msg-keyinit octet-stream msg))
+
+(defmethod write-msg ((msg tisch.msg::kexdh-init)
+                      octet-stream)
+  (write-msg-kexdh-init octet-stream msg))
+
+(defun msg->payload (msg)
+  (flexi-streams:with-output-to-sequence (octet-stream)
+    (write-msg msg octet-stream)))
+
 
 (defun read-msg (octet-stream)
   (let ((type (read-byte octet-stream)))
@@ -195,14 +211,6 @@
            (read-msg-kexdh-reply octet-stream))
           (t
            (error "invalid type: ~A" type)))))
-
-(defun msg-keyinit->payload (keyinit)
-  (flexi-streams:with-output-to-sequence (octet-stream)
-    (write-msg-keyinit octet-stream keyinit)))
-
-(defun msg-kexdh-init->payload (e)
-  (flexi-streams:with-output-to-sequence (octet-stream)
-    (write-msg-kexdh-init octet-stream e)))
 
 (defun payload->msg (payload)
   (flexi-streams:with-input-from-sequence (octet-stream payload)

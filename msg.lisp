@@ -16,6 +16,9 @@
   languages-server-to-client
   first-kex-packet-follows)
 
+(defstruct kexdh-init
+  e)
+
 (defstruct kexdh-reply
   host-key-and-certificates
   f
