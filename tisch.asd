@@ -1,9 +1,10 @@
 (asdf:defsystem :tisch
   :serial t
-  :components ((:file "msg")
+  :components ((:file "pkcs")
+               (:file "msg")
                (:file "transport")
-               (:file "client")
                (:file "dh")
+               (:file "client")
                (:file "tisch"))
   :depends-on (:ironclad
                :usocket
