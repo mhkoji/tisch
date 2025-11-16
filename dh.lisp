@@ -55,17 +55,19 @@
     (ironclad:digest-sequence digest seq)))
 
 (defun os2ip (octets)
-  (let ((length (length octets)))
+  (let ((ret 0)
+        (length (length octets)))
     (loop for i from 0 below length
-          sum (* (aref octets i)
-                 (expt 256 (- length (1+ i)))))))
+          for val = (ash (aref octets i)
+                         (* 8 (- length i 1)))
+          do (setf ret (logior ret val)))
+    ret))
 
 (defun i2osp (uint length)
   (let ((seq (make-array length)))
     (loop for i from (1- length) downto 0
-          for value = uint then (floor value 256)
-          for rem = (rem value 256)
-          do (setf (aref seq i) rem))
+          for value = uint then (ash value -8)
+          do (setf (aref seq i) (logand value #xFF)))
     seq))
 
 (defun verify (message signature e n)
