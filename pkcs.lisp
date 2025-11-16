@@ -38,32 +38,30 @@
 (defgeneric hasher-identifier (hasher))
 (defgeneric hasher-hash (hasher message))
 
-(defun rsassa-pkcs1-v1-5-compare (message
-                                  encoded-message-from-signature
-                                  hasher)
-  (assert (= (aref encoded-message-from-signature 0) 0))
-  (assert (= (aref encoded-message-from-signature 1) 1))
-  (let ((i 2))
-    (loop for val = (aref encoded-message-from-signature i)
-          while (/= val 0)
-          do (progn
-               (assert (= val #xFF))
-               (incf i)))
-    (incf i) ;; skip 0
-    (let ((identifier (hasher-identifier hasher)))
-      (loop for v1 across identifier
-            for v2 = (aref encoded-message-from-signature i)
-            do (progn
-                 (assert (= v1 v2))
-                 (incf i))))
-    (let ((em1 (hasher-hash hasher message))
-          (em2 (subseq encoded-message-from-signature i)))
-      (assert (equalp em1 em2)))))
+(defun emsa-pkcs1-v1-5-digest-info (em)
+  ;; EM = 0x00 || 0x01 || PS || 0x00 || T
+  (assert (= (aref em 0) 0))
+  (assert (= (aref em 1) 1))
+  (let ((pos (position #x00 em :start 2)))
+    (loop for i from 2 below pos
+          do (assert (= (aref em i) #xFF)))
+    ;; skip 0
+    (subseq em (1+ pos))))
 
+;; 8.2.2 Signature verification operation
+;;    RSASSA-PKCS1-V1_5-VERIFY ((n, e), M, S)
 (defun rsassa-pkcs1-v1-5-verify (hasher message signature e n)
-  (rsassa-pkcs1-v1-5-compare
-   message
-   (let ((s (os2ip signature)))
-     (let ((m (mod-expt s e n)))
-       (i2osp m (length signature))))
-   hasher))
+  (let ((digest-info (emsa-pkcs1-v1-5-digest-info
+                      (let ((s (os2ip signature)))
+                        (let ((m (mod-expt s e n)))
+                          (i2osp m (length signature)))))))
+    (let ((i 0))
+      (let ((identifier (hasher-identifier hasher)))
+        (loop for v1 across identifier
+              for v2 = (aref digest-info i)
+              do (progn
+                   (assert (= v1 v2))
+                   (incf i))))
+      (let ((em1 (hasher-hash hasher message))
+            (em2 (subseq digest-info i)))
+        (assert (equalp em1 em2))))))

@@ -42,8 +42,10 @@
 
 (defun exchange-hash (&key V-C V-S I-C I-S K-S e f K)
   (let ((seq (flexi-streams:with-output-to-sequence (out-stream)
-               (tisch.transport::write-string out-stream (babel:string-to-octets V-C))
-               (tisch.transport::write-string out-stream (babel:string-to-octets V-S))
+               (tisch.transport::write-string out-stream
+                                              (babel:string-to-octets V-C))
+               (tisch.transport::write-string out-stream
+                                              (babel:string-to-octets V-S))
                (tisch.transport::write-string out-stream I-C)
                (tisch.transport::write-string out-stream I-S)
                (tisch.transport::write-string out-stream K-S)
@@ -62,10 +64,14 @@
                                     message)
   (sha256 message))
 
-(defun verify (exchange-hash signature certificates)
+(defgeneric verify (signature certificates message))
+
+(defmethod verify ((signature tisch.msg::signature-rsa-sha2-256)
+                   (certificates tisch.msg::ssh-rsa)
+                   message)
   (tisch.pkcs::rsassa-pkcs1-v1-5-verify
    (make-instance 'sha256-hasher)
-   exchange-hash
-   (tisch.msg::rsa-sha-signature-blob signature)
+   message
+   (tisch.msg::signature-rsa-sha2-256-blob signature)
    (tisch.msg::ssh-rsa-e certificates)
    (tisch.msg::ssh-rsa-n certificates)))

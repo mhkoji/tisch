@@ -106,11 +106,6 @@
    :e (read-mpint octet-stream)
    :n (read-mpint octet-stream)))
 
-(defun read-rsa-sha-signature (octet-stream format)
-  (tisch.msg::make-rsa-sha-signature
-   :blob (read-string octet-stream)
-   :format format))
-
 (defun write-packet (octet-stream packet)
   (write-uint32 octet-stream (tisch.msg::packet-length packet))
   (write-byte   octet-stream (tisch.msg::packet-padding-length packet))
@@ -210,7 +205,8 @@
 (defun read-signature (octet-stream)
   (let ((format (babel:octets-to-string (read-string octet-stream))))
     (cond ((string= format "rsa-sha2-256")
-           (read-rsa-sha-signature octet-stream :rsa-sha2-256))
+           (tisch.msg::make-signature-rsa-sha2-256
+            :blob (read-string octet-stream)))
           (t
            (error "unknown format: ~A" format)))))
 

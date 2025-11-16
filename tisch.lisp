@@ -70,8 +70,9 @@
                         :e e
                         :f f
                         :K (tisch.dh::calculate-K dh f x))))
-                  (tisch.dh::verify
-                   exchange-hash signature certificates))))))))
+                  (tisch.dh::verify signature
+                                    certificates
+                                    exchange-hash))))))))
     (values)
     #+nil
     (loop for byte = (read-byte

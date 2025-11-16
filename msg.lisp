@@ -29,9 +29,8 @@
   e
   n)
 
-(defstruct rsa-sha-signature
-  blob
-  format)
+(defstruct signature-rsa-sha2-256
+  blob)
 
 (defstruct packet
   length
