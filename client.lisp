@@ -20,12 +20,17 @@
     ;; (format *debug-io* "Read: ~A ~%" packet)
     packet))
 
+(defun msg->packet (msg)
+  (tisch.msg::create-packet
+   (tisch.transport::msg->payload msg)))
+
+(defun packet->msg (packet)
+  (tisch.transport::payload->msg
+   (tisch.msg::packet-payload packet)))
+
+
 (defun send-msg (client msg)
-  (let ((payload (tisch.transport::msg->payload msg)))
-    (let ((packet (tisch.msg::create-packet payload)))
-      (send-packet client packet))))
+  (send-packet client (msg->packet msg)))
 
 (defun recv-msg (client)
-  (let ((packet (read-packet client)))
-    (let ((payload (tisch.msg::packet-payload packet)))
-      (tisch.transport::payload->msg payload))))
+  (packet->msg (read-packet client)))
