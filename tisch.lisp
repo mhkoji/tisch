@@ -59,17 +59,20 @@
                       (tisch.msg::kexdh-reply-host-key-and-certificates
                        server-kexdh-reply)))
                 (print server-kexdh-reply)
-                (let ((exchange-hash
-                       (tisch.dh::exchange-hash
-                        :V-C *client-version*
-                        :V-S server-version
-                        :I-C (tisch.transport::msg->payload client-kexinit)
-                        :I-S (tisch.transport::msg->payload server-kexinit)
-                        :K-S (tisch.msg::kexdh-reply-host-key-and-certificates-octets
-                              server-kexdh-reply)
-                        :e e
-                        :f f
-                        :K (tisch.dh::calculate-K modp f x))))
+                (let* ((K
+                        (tisch.dh::calculate-K modp f x))
+                       (exchange-hash
+                        (tisch.dh::exchange-hash
+                         :V-C *client-version*
+                         :V-S server-version
+                         :I-C (tisch.transport::msg->payload client-kexinit)
+                         :I-S (tisch.transport::msg->payload server-kexinit)
+                         :K-S (tisch.msg::kexdh-reply-host-key-and-certificates-octets
+                               server-kexdh-reply)
+                         :e e
+                         :f f
+                         :K K)))
+                  (print (list K exchange-hash))
                   (tisch.dh::verify signature
                                     certificates
                                     exchange-hash))))))))

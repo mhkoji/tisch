@@ -75,3 +75,52 @@
    (tisch.msg::signature-rsa-sha2-256-blob signature)
    (tisch.msg::ssh-rsa-e certificates)
    (tisch.msg::ssh-rsa-n certificates)))
+
+
+(defstruct encryption-keys
+  initial-iv-client-to-server
+  initial-iv-server-to-client
+  encryption-key-client-to-server
+  encryption-key-server-to-client
+  integrity-key-client-to-server
+  integrity-key-server-to-client)
+
+(defun concatenate-octets (octets-list)
+  (flexi-streams:with-output-to-sequence (out-stream)
+    (dolist (octets octets-list)
+      (write-sequence octets out-stream))))
+
+(defun calculate-key-material (K H X session-id hash-fn len)
+  (let ((K-mpint
+         (flexi-streams:with-output-to-sequence (out-stream)
+           (tisch.transport::write-mpint out-stream K))))
+    (labels ((next-key (octets-list)
+               (funcall hash-fn (concatenate-octets
+                                 (list* K-mpint H octets-list))))
+             (rec (keys)
+               (let ((key (concatenate-octets keys)))
+                 (if (<= len (length key))
+                     (subseq key 0 len)
+                     (rec (append keys (list (next-key keys))))))))
+      (rec (list (next-key (list X session-id)))))))
+
+(defun build-encryption-keys (K H session-id)
+  (make-encryption-keys
+   :initial-iv-client-to-server
+   (calculate-key-material K H (babel:string-to-octets "A") session-id
+                           #'sha256 16)
+   :initial-iv-server-to-client
+   (calculate-key-material K H (babel:string-to-octets "B") session-id
+                           #'sha256 16)
+   :encryption-key-client-to-server
+   (calculate-key-material K H (babel:string-to-octets "C") session-id
+                           #'sha256 16)
+   :encryption-key-server-to-client
+   (calculate-key-material K H (babel:string-to-octets "D") session-id
+                           #'sha256 16)
+   :integrity-key-client-to-server
+   (calculate-key-material K H (babel:string-to-octets "E") session-id
+                           #'sha256 20)
+   :integrity-key-server-to-client
+   (calculate-key-material K H (babel:string-to-octets "F") session-id
+                           #'sha256 20)))
