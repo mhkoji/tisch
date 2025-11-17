@@ -194,6 +194,10 @@
     (:byte  30)
     (:mpint (tisch.msg::kexdh-init-e kexdh-init))))
 
+(defun write-msg-newkeys (octet-stream)
+  (do-write octet-stream
+    (:byte 21)))
+
 
 (defun read-certificates (octet-stream)
   (let ((format (babel:octets-to-string (read-string octet-stream))))
@@ -235,6 +239,11 @@
                       octet-stream)
   (write-msg-kexdh-init octet-stream msg))
 
+(defmethod write-msg ((msg tisch.msg::newkeys)
+                      octet-stream)
+  (write-msg-newkeys octet-stream))
+
+
 (defun msg->payload (msg)
   (flexi-streams:with-output-to-sequence (octet-stream)
     (write-msg msg octet-stream)))
@@ -244,6 +253,8 @@
   (let ((type (read-byte octet-stream)))
     (cond ((= type 20)
            (read-msg-kexinit octet-stream))
+          ((= type 21)
+           (tisch.msg::make-newkeys))
           ((= type 31)
            (read-msg-kexdh-reply octet-stream))
           (t

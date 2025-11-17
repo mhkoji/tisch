@@ -25,6 +25,8 @@
   f
   signature-of-H)
 
+(defstruct newkeys)
+
 (defstruct ssh-rsa
   e
   n)

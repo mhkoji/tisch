@@ -75,7 +75,11 @@
                   (print (list K exchange-hash))
                   (tisch.dh::verify signature
                                     certificates
-                                    exchange-hash))))))))
+                                    exchange-hash)
+                  (tisch.client::send-msg
+                   client (tisch.msg::make-newkeys))
+                  (print
+                   (tisch.client::recv-msg client)))))))))
     (values)
     #+nil
     (loop for byte = (read-byte
