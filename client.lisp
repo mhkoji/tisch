@@ -20,6 +20,24 @@
     ;; (format *debug-io* "Read: ~A ~%" packet)
     packet))
 
+(defun encrypt-packet (cipher packet size)
+  (let ((octets-plain
+          ;; Avoid TYPE-ERROR: The value is not of
+          ;;   type (SIMPLE-ARRAY (UNSIGNED-BYTE 8) (*))
+         (copy-seq
+          (flexi-streams:with-output-to-sequence (out-stream)
+            (tisch.transport::write-packet out-stream packet)))))
+    (let ((octets-encrypted
+           (make-array (length octets-plain)
+                       :element-type '(unsigned-byte 8))))
+      (loop for offset = 0 then (+ offset size)
+            while (< offset (length octets-plain))
+            do (tisch.cipher::encrypt cipher octets-plain octets-encrypted
+                                      :plaintext-start offset
+                                      :plaintext-end (+ offset size)
+                                      :ciphertext-start offset))
+      octets-encrypted)))
+
 (defun msg->packet (msg)
   (tisch.msg::create-packet
    (tisch.transport::msg->payload msg)))

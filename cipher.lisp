@@ -1,18 +1,12 @@
 (defpackage :tisch.cipher
-  (:use :cl))
+  (:use :cl)
+  (:import-from :ironclad
+                :encrypt
+                :decrypt))
 (in-package :tisch.cipher)
 
-(defstruct aes
-  key iv (mode :ctr))
-
-(defun aes->cipher (aes)
+(defun make-aes128-ctr (key iv)
   (ironclad:make-cipher :aes
-                        :key (aes-key aes)
-                        :mode (aes-mode aes)
-                        :initialization-vector (aes-iv aes)))
-
-(defun encrypt (aes octets)
-  (ironclad:encrypt-message (aes->cipher aes) octets))
-
-(defun decrypt (aes octets)
-  (ironclad:decrypt-message (aes->cipher aes) octets))
+                        :key key
+                        :mode :ctr
+                        :initialization-vector iv))
