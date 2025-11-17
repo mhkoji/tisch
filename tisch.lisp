@@ -42,9 +42,9 @@
         (let ((server-kexinit
                (tisch.client::recv-msg client)))
           (print server-kexinit)
-          (let ((dh tisch.dh::*modp-2048*))
+          (let ((modp tisch.dh::*modp-2048*))
             (destructuring-bind (e x)
-                (tisch.dh::calculate-e dh)
+                (tisch.dh::calculate-e modp)
               (tisch.client::send-msg
                client
                (tisch.msg::make-kexdh-init :e e))
@@ -69,7 +69,7 @@
                               server-kexdh-reply)
                         :e e
                         :f f
-                        :K (tisch.dh::calculate-K dh f x))))
+                        :K (tisch.dh::calculate-K modp f x))))
                   (tisch.dh::verify signature
                                     certificates
                                     exchange-hash))))))))

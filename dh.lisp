@@ -10,14 +10,14 @@
   (let ((digest (ironclad:make-digest 'ironclad:sha256)))
     (ironclad:digest-sequence digest seq)))
 
-(defstruct dh
+(defstruct modp
   generator
   prime)
 
 (defvar *modp-2048*
-  (make-dh
+  (make-modp
    :generator 2
-   :prime (hex-to-integer
+   :prime (hex-to-integer ;; rfc3526
            "FFFFFFFF" "FFFFFFFF" "C90FDAA2" "2168C234" "C4C6628B" "80DC1CD1"
            "29024E08" "8A67CC74" "020BBEA6" "3B139B22" "514A0879" "8E3404DD"
            "EF9519B3" "CD3A431B" "302B0A6D" "F25F1437" "4FE1356D" "6D51C245"
@@ -30,15 +30,15 @@
            "DE2BCBF6" "95581718" "3995497C" "EA956AE5" "15D22618" "98FA0510"
            "15728E5A" "8AACAA68" "FFFFFFFF" "FFFFFFFF")))
 
-(defun calculate-e (dh)
-  (let* ((g (dh-generator dh))
-         (p (dh-prime dh))
+(defun calculate-e (modp)
+  (let* ((g (modp-generator modp))
+         (p (modp-prime modp))
          (x (random p))
          (e (tisch.pkcs::mod-expt g x p)))
     (list e x)))
 
-(defun calculate-K (dh f x)
-  (tisch.pkcs::mod-expt f x (dh-prime dh)))
+(defun calculate-K (modp f x)
+  (tisch.pkcs::mod-expt f x (modp-prime modp)))
 
 (defun exchange-hash (&key V-C V-S I-C I-S K-S e f K)
   (let ((seq (flexi-streams:with-output-to-sequence (out-stream)
