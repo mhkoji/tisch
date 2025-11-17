@@ -1,6 +1,7 @@
 (asdf:defsystem :tisch
   :serial t
-  :components ((:file "pkcs")
+  :components ((:file "cipher")
+               (:file "pkcs")
                (:file "msg")
                (:file "transport")
                (:file "dh")
