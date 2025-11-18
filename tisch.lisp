@@ -5,24 +5,28 @@
 (defvar *client-version*
   "SSH-2.0-tisch_0.0.0")
 
+(defstruct client
+  connection
+  session-id
+  encryption-keys)
+
 (defmacro with-conntected-stream ((stream host port) &body body)
   `(usocket:with-client-socket (socket ,stream ,host ,port
                                        :element-type '(unsigned-byte 8))
      ,@body))
 
-(defmacro with-client ((client host port) &body body)
+(defmacro with-connection ((conn host port) &body body)
   `(with-conntected-stream (stream ,host ,port)
-     (let ((,client (tisch.client::make-client
-                     :stream stream
-                     :version *client-version*)))
+     (let ((,conn (tisch.connection::make-connection
+                   :stream stream)))
        ,@body)))
 
 ;;;
 
 (defun run ()
-  (with-client (client "localhost" 22)
+  (with-connection (conn "localhost" 22)
     (let ((server-version
-           (tisch.client::exchange-version client)))
+           (tisch.connection::exchange-version conn)))
       (print server-version)
       (let ((client-kexinit
              (tisch.msg::make-kexinit
@@ -38,18 +42,18 @@
               :languages-client-to-server nil
               :languages-server-to-client nil
               :first-kex-packet-follows nil)))
-        (tisch.client::send-msg client client-kexinit)
+        (tisch.connection::send-msg conn conn-kexinit)
         (let ((server-kexinit
-               (tisch.client::recv-msg client)))
+               (tisch.connection::recv-msg conn)))
           (print server-kexinit)
           (let ((modp tisch.dh::*modp-2048*))
             (destructuring-bind (e x)
                 (tisch.dh::calculate-e modp)
-              (tisch.client::send-msg
-               client
+              (tisch.connection::send-msg
+               conn
                (tisch.msg::make-kexdh-init :e e))
               (let* ((server-kexdh-reply
-                      (tisch.client::recv-msg client))
+                      (tisch.connection::recv-msg conn))
                      (f
                       (tisch.msg::kexdh-reply-f server-kexdh-reply))
                      (signature
@@ -65,7 +69,7 @@
                         (tisch.dh::exchange-hash
                          :V-C *client-version*
                          :V-S server-version
-                         :I-C (tisch.transport::msg->payload client-kexinit)
+                         :I-C (tisch.transport::msg->payload conn-kexinit)
                          :I-S (tisch.transport::msg->payload server-kexinit)
                          :K-S (tisch.msg::kexdh-reply-host-key-and-certificates-octets
                                server-kexdh-reply)
@@ -76,10 +80,10 @@
                   (tisch.dh::verify signature
                                     certificates
                                     exchange-hash)
-                  (tisch.client::send-msg
-                   client (tisch.msg::make-newkeys))
+                  (tisch.connection::send-msg
+                   conn (tisch.msg::make-newkeys))
                   (print
-                   (tisch.client::recv-msg client))
+                   (tisch.connection::recv-msg conn))
 
                   (let* ((ek
                           (tisch.dh::build-encryption-keys
@@ -98,15 +102,15 @@
                          (hmac-server-to-client
                           (tisch.cipher::make-hmac-sha1
                            (tisch.dh::encryption-keys-integrity-key-server-to-client ek))))
-                    (tisch.client::send-msg-encrypted
-                     client cipher-client-to-server hmac-client-to-server
+                    (tisch.connection::send-msg-encrypted
+                     conn cipher-client-to-server hmac-client-to-server
                      (tisch.msg::make-service-request
                       :service-name "ssh-userauth"))
                     (print
-                     (tisch.client::recv-msg-encrypted
-                      client cipher-server-to-client hmac-server-to-client))
+                     (tisch.connection::recv-msg-encrypted
+                      conn cipher-server-to-client hmac-server-to-client))
                     #+nil
                     (loop for byte = (read-byte
-                                      (tisch.client::client-stream client))
+                                      (tisch.connection::client-stream conn))
                           while byte do (print byte)))))))))))
   (values))

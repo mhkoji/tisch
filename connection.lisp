@@ -1,26 +1,26 @@
-(defpackage :tisch.client
+(defpackage :tisch.connection
   (:use :cl))
-(in-package :tisch.client)
+(in-package :tisch.connection)
 
-(defstruct client
+(defstruct connection
   stream
-  version
   (send-sequence-number 0)
   (recv-sequence-number 0))
 
-(defun exchange-version (client)
-  (tisch.transport::exchange-version (client-stream client)
-                                     (client-stream client)
-                                     (client-version client)))
+(defun exchange-version (conn version)
+  (tisch.transport::exchange-version
+   (connection-stream conn)
+   (connection-stream conn)
+   version))
 
-(defun send-packet (client packet)
+(defun send-packet (conn packet)
   ;; (format *debug-io* "Written: ~A ~%" packet)
-  (let ((stream (client-stream client)))
+  (let ((stream (connection-stream conn)))
     (tisch.transport::write-packet stream packet)
     (force-output stream)))
 
-(defun read-packet (client)
-  (let ((packet (tisch.transport::read-packet (client-stream client))))
+(defun read-packet (conn)
+  (let ((packet (tisch.transport::read-packet (connection-stream conn))))
     ;; (format *debug-io* "Read: ~A ~%" packet)
     packet))
 
@@ -33,16 +33,16 @@
    (tisch.msg::packet-payload packet)))
 
 
-(defun send-msg (client msg)
-  (incf (client-send-sequence-number client))
-  (send-packet client (msg->packet msg)))
+(defun send-msg (conn msg)
+  (incf (connection-send-sequence-number conn))
+  (send-packet conn (msg->packet msg)))
 
-(defun recv-msg (client)
-  (incf (client-recv-sequence-number client))
-  (packet->msg (read-packet client)))
+(defun recv-msg (conn)
+  (incf (connection-recv-sequence-number conn))
+  (packet->msg (read-packet conn)))
 
 
-(defun send-msg-encrypted (client cipher hmac msg)
+(defun send-msg-encrypted (conn cipher hmac msg)
   (let ((octets-plain
          ;; Avoid TYPE-ERROR: The value is not of
          ;;   type (SIMPLE-ARRAY (UNSIGNED-BYTE 8) (*))
@@ -51,7 +51,7 @@
             (tisch.transport::write-packet
              out-stream (msg->packet msg :block-size 16)))))
         (sequence-number
-         (client-send-sequence-number client)))
+         (connection-send-sequence-number conn)))
     (let ((octets-encrypted
            (tisch.cipher::encrypt-message cipher octets-plain))
           (mac
@@ -61,11 +61,11 @@
              (flexi-streams:with-output-to-sequence (out-stream)
                (tisch.transport::write-uint32 out-stream sequence-number)
                (tisch.transport::write-bytes out-stream octets-plain))))))
-      (let ((stream (client-stream client)))
+      (let ((stream (connection-stream conn)))
         (tisch.transport::write-bytes stream octets-encrypted)
         (tisch.transport::write-bytes stream mac)
         (force-output stream))
-      (incf (client-send-sequence-number client))))
+      (incf (connection-send-sequence-number conn))))
   (values))
 
 (defun read-packet-encrypted (stream cipher)
@@ -79,12 +79,12 @@
                    (tisch.transport::read-bytes stream packet-length))))
       (tisch.transport::parse-packet octets packet-length))))
 
-(defun recv-msg-encrypted (client cipher hmac)
-  (let ((stream (client-stream client)))
+(defun recv-msg-encrypted (conn cipher hmac)
+  (let ((stream (connection-stream conn)))
     (let ((packet (read-packet-encrypted stream cipher))
           (mac (tisch.transport::read-bytes stream 20)))
       (let* ((sequence-number
-              (client-recv-sequence-number client))
+              (connection-recv-sequence-number conn))
              (mac2
               (tisch.cipher::hmac-update-and-digest
                hmac
@@ -93,5 +93,5 @@
                   (tisch.transport::write-uint32 out-stream sequence-number)
                   (tisch.transport::write-packet out-stream packet))))))
         (assert (equalp mac mac2)))
-      (incf (client-recv-sequence-number client))
+      (incf (connection-recv-sequence-number conn))
       (packet->msg packet))))
