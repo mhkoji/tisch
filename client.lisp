@@ -24,15 +24,6 @@
     ;; (format *debug-io* "Read: ~A ~%" packet)
     packet))
 
-(defun encrypt-packet-octets (cipher octets)
-  (ironclad:encrypt-message cipher octets)
-  #+nil
-  (let ((length (length octets)))
-    (let ((octets-encrypted (make-array length
-                                        :element-type '(unsigned-byte 8))))
-      (tisch.cipher::encrypt cipher octets octets-encrypted)
-      octets-encrypted)))
-
 (defun msg->packet (msg &key (block-size 8))
   (tisch.msg::create-packet
    (tisch.transport::msg->payload msg) block-size))
@@ -60,7 +51,7 @@
         (sequence-number
          (client-send-sequence-number client)))
     (let ((octets-encrypted
-           (encrypt-packet-octets cipher octets-plain))
+           (tisch.cipher::encrypt-message cipher octets-plain))
           (mac
            (tisch.cipher::hmac-update-and-digest
             hmac
@@ -77,11 +68,11 @@
 
 (defun read-packet-encrypted (stream cipher)
   (let ((packet-length (tisch.transport::sequence->uint
-                        (ironclad:decrypt-message
+                        (tisch.cipher::decrypt-message
                          cipher
                          (tisch.transport::read-bytes stream 4))
                         4)))
-    (let ((octets (ironclad:decrypt-message
+    (let ((octets (tisch.cipher::decrypt-message
                    cipher
                    (tisch.transport::read-bytes stream packet-length))))
       (tisch.transport::parse-packet octets packet-length))))

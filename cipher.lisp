@@ -1,8 +1,8 @@
 (defpackage :tisch.cipher
   (:use :cl)
   (:import-from :ironclad
-                :encrypt
-                :decrypt))
+                :encrypt-message
+                :decrypt-message))
 (in-package :tisch.cipher)
 
 (defun make-aes128-ctr (key iv)
