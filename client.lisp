@@ -5,7 +5,7 @@
 (defstruct client
   stream
   version
-  (send-sequence-number 3)
+  (send-sequence-number 0)
   (recv-sequence-number 0))
 
 (defun exchange-version (client)
@@ -34,9 +34,11 @@
 
 
 (defun send-msg (client msg)
+  (incf (client-send-sequence-number client))
   (send-packet client (msg->packet msg)))
 
 (defun recv-msg (client)
+  (incf (client-recv-sequence-number client))
   (packet->msg (read-packet client)))
 
 
