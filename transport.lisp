@@ -106,11 +106,32 @@
    :e (read-mpint octet-stream)
    :n (read-mpint octet-stream)))
 
+
 (defun write-packet (octet-stream packet)
   (write-uint32 octet-stream (tisch.msg::packet-length packet))
   (write-byte   octet-stream (tisch.msg::packet-padding-length packet))
   (write-bytes  octet-stream (tisch.msg::packet-payload packet))
   (write-bytes  octet-stream (tisch.msg::packet-padding packet)))
+
+(defun write-packet-encrypted (octet-stream cipher hmac packet sequence-number)
+  (let ((octets-plain
+         ;; Avoid TYPE-ERROR: The value is not of
+         ;;   type (SIMPLE-ARRAY (UNSIGNED-BYTE 8) (*))
+         (copy-seq
+          (flexi-streams:with-output-to-sequence (out-stream)
+            (write-packet out-stream packet)))))
+    (let ((octets-encrypted
+           (tisch.cipher::encrypt-message cipher octets-plain))
+          (mac
+           (tisch.cipher::hmac-update-and-digest
+            hmac
+            (copy-seq
+             (flexi-streams:with-output-to-sequence (out-stream)
+               (write-uint32 out-stream sequence-number)
+               (write-bytes out-stream octets-plain))))))
+      (write-bytes octet-stream octets-encrypted)
+      (write-bytes octet-stream mac))))
+
 
 (defun parse-packet (octets packet-length)
   (let ((padding-length (aref octets 0)))
@@ -123,6 +144,27 @@
   (let ((packet-length (read-uint32 octet-stream)))
     (let ((octets (read-bytes octet-stream packet-length)))
       (parse-packet octets packet-length))))
+
+(defun read-packet-encrypted (octet-stream cipher hmac sequence-number)
+  (let ((packet (let* ((packet-length
+                        (sequence->uint
+                         (tisch.cipher::decrypt-message
+                          cipher (read-bytes octet-stream 4))
+                         4))
+                       (octets
+                        (tisch.cipher::decrypt-message
+                         cipher (read-bytes octet-stream packet-length))))
+                  (parse-packet octets packet-length)))
+        (mac (read-bytes octet-stream 20)))
+      (let ((mac2 (tisch.cipher::hmac-update-and-digest
+                   hmac
+                   (copy-seq
+                    (flexi-streams:with-output-to-sequence (out-stream)
+                      (write-uint32 out-stream sequence-number)
+                      (write-packet out-stream packet))))))
+        (assert (equalp mac mac2)))
+    packet))
+
 
 (defmacro do-write (stream &rest clauses)
   `(progn
@@ -226,7 +268,6 @@
 (defun read-msg-service-accept (octet-stream)
   (tisch.msg::make-service-accept
    :service-name (babel:octets-to-string (read-string octet-stream))))
-
 
 (defun read-msg-kexdh-reply (octet-stream)
   (let* ((host-key-and-certificates-octets (read-string octet-stream)))

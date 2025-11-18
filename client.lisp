@@ -37,61 +37,23 @@
   (incf (client-send-sequence-number client))
   (send-packet client (msg->packet msg)))
 
+(defun send-msg-encrypted (client cipher hmac msg)
+  (with-accessors ((stream client-stream)
+                   (sequence-number client-send-sequence-number)) client
+    (tisch.transport::write-packet-encrypted
+     stream cipher hmac (msg->packet msg :block-size 16) sequence-number)
+    (force-output stream)
+    (incf sequence-number))
+  (values))
+
 (defun recv-msg (client)
   (incf (client-recv-sequence-number client))
   (packet->msg (read-packet client)))
 
-
-(defun send-msg-encrypted (client cipher hmac msg)
-  (let ((octets-plain
-         ;; Avoid TYPE-ERROR: The value is not of
-         ;;   type (SIMPLE-ARRAY (UNSIGNED-BYTE 8) (*))
-         (copy-seq
-          (flexi-streams:with-output-to-sequence (out-stream)
-            (tisch.transport::write-packet
-             out-stream (msg->packet msg :block-size 16)))))
-        (sequence-number
-         (client-send-sequence-number client)))
-    (let ((octets-encrypted
-           (tisch.cipher::encrypt-message cipher octets-plain))
-          (mac
-           (tisch.cipher::hmac-update-and-digest
-            hmac
-            (copy-seq
-             (flexi-streams:with-output-to-sequence (out-stream)
-               (tisch.transport::write-uint32 out-stream sequence-number)
-               (tisch.transport::write-bytes out-stream octets-plain))))))
-      (let ((stream (client-stream client)))
-        (tisch.transport::write-bytes stream octets-encrypted)
-        (tisch.transport::write-bytes stream mac)
-        (force-output stream))
-      (incf (client-send-sequence-number client))))
-  (values))
-
-(defun read-packet-encrypted (stream cipher)
-  (let ((packet-length (tisch.transport::sequence->uint
-                        (tisch.cipher::decrypt-message
-                         cipher
-                         (tisch.transport::read-bytes stream 4))
-                        4)))
-    (let ((octets (tisch.cipher::decrypt-message
-                   cipher
-                   (tisch.transport::read-bytes stream packet-length))))
-      (tisch.transport::parse-packet octets packet-length))))
-
 (defun recv-msg-encrypted (client cipher hmac)
-  (let ((stream (client-stream client)))
-    (let ((packet (read-packet-encrypted stream cipher))
-          (mac (tisch.transport::read-bytes stream 20)))
-      (let* ((sequence-number
-              (client-recv-sequence-number client))
-             (mac2
-              (tisch.cipher::hmac-update-and-digest
-               hmac
-               (copy-seq
-                (flexi-streams:with-output-to-sequence (out-stream)
-                  (tisch.transport::write-uint32 out-stream sequence-number)
-                  (tisch.transport::write-packet out-stream packet))))))
-        (assert (equalp mac mac2)))
-      (incf (client-recv-sequence-number client))
+  (with-accessors ((stream client-stream)
+                   (sequence-number client-recv-sequence-number)) client
+    (let ((packet (tisch.transport::read-packet-encrypted
+                   stream cipher hmac sequence-number)))
+      (incf sequence-number)
       (packet->msg packet))))
