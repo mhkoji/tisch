@@ -80,11 +80,18 @@
       (tisch.transport::parse-packet octets packet-length))))
 
 (defun recv-msg-encrypted (client cipher hmac)
-  (declare (ignore hmac))  ;; Todo
   (let ((stream (client-stream client)))
     (let ((packet (read-packet-encrypted stream cipher))
           (mac (tisch.transport::read-bytes stream 20)))
-      (declare (ignore mac))
-      (let ((msg (packet->msg packet)))
-        (incf (client-recv-sequence-number client))
-        msg))))
+      (let* ((sequence-number
+              (client-recv-sequence-number client))
+             (mac2
+              (tisch.cipher::hmac-update-and-digest
+               hmac
+               (copy-seq
+                (flexi-streams:with-output-to-sequence (out-stream)
+                  (tisch.transport::write-uint32 out-stream sequence-number)
+                  (tisch.transport::write-packet out-stream packet))))))
+        (assert (equalp mac mac2)))
+      (incf (client-recv-sequence-number client))
+      (packet->msg packet))))
