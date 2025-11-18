@@ -30,6 +30,9 @@
 (defstruct service-request
   service-name)
 
+(defstruct service-accept
+  service-name)
+
 (defstruct ssh-rsa
   e
   n)

@@ -84,19 +84,29 @@
                   (let* ((ek
                           (tisch.dh::build-encryption-keys
                            K exchange-hash exchange-hash))
-                         (cipher
+                         (cipher-client-to-server
                           (tisch.cipher::make-aes128-ctr
                            (tisch.dh::encryption-keys-encryption-key-client-to-server ek)
                            (tisch.dh::encryption-keys-initial-iv-client-to-server ek)))
-                         (hmac
+                         (cipher-server-to-client
+                          (tisch.cipher::make-aes128-ctr
+                           (tisch.dh::encryption-keys-encryption-key-server-to-client ek)
+                           (tisch.dh::encryption-keys-initial-iv-server-to-client ek)))
+                         (hmac-client-to-server
                           (tisch.cipher::make-hmac-sha1
-                           (tisch.dh::encryption-keys-integrity-key-client-to-server ek))))
+                           (tisch.dh::encryption-keys-integrity-key-client-to-server ek)))
+                         (hmac-server-to-client
+                          (tisch.cipher::make-hmac-sha1
+                           (tisch.dh::encryption-keys-integrity-key-server-to-client ek))))
                     (tisch.client::send-msg-encrypted
-                     client cipher hmac
+                     client cipher-client-to-server hmac-client-to-server
                      (tisch.msg::make-service-request
-                      :service-name "ssh-userauth"))))))))))
-    (values)
-    #+nil
-    (loop for byte = (read-byte
-                      (tisch.client::client-stream client))
-          while byte do (print byte))))
+                      :service-name "ssh-userauth"))
+                    (print
+                     (tisch.client::recv-msg-encrypted
+                      client cipher-server-to-client hmac-server-to-client))
+                    #+nil
+                    (loop for byte = (read-byte
+                                      (tisch.client::client-stream client))
+                          while byte do (print byte)))))))))))
+  (values))

@@ -112,15 +112,17 @@
   (write-bytes  octet-stream (tisch.msg::packet-payload packet))
   (write-bytes  octet-stream (tisch.msg::packet-padding packet)))
 
-(defun read-packet (octet-stream)
-  (let* ((packet-length (read-uint32 octet-stream))
-         (packet        (read-bytes  octet-stream packet-length)))
-    (let ((padding-length (aref packet 0)))
-      (tisch.msg::make-packet
-       :length packet-length
-       :payload (subseq packet 1 (- packet-length padding-length))
-       :padding (subseq packet (- packet-length padding-length))))))
+(defun parse-packet (octets packet-length)
+  (let ((padding-length (aref octets 0)))
+    (tisch.msg::make-packet
+     :length packet-length
+     :payload (subseq octets 1 (- packet-length padding-length))
+     :padding (subseq octets (- packet-length padding-length)))))
 
+(defun read-packet (octet-stream)
+  (let ((packet-length (read-uint32 octet-stream)))
+    (let ((octets (read-bytes octet-stream packet-length)))
+      (parse-packet octets packet-length))))
 
 (defmacro do-write (stream &rest clauses)
   `(progn
@@ -221,6 +223,11 @@
           (t
            (error "unknown format: ~A" format)))))
 
+(defun read-msg-service-accept (octet-stream)
+  (tisch.msg::make-service-accept
+   :service-name (babel:octets-to-string (read-string octet-stream))))
+
+
 (defun read-msg-kexdh-reply (octet-stream)
   (let* ((host-key-and-certificates-octets (read-string octet-stream)))
     (tisch.msg::make-kexdh-reply
@@ -262,7 +269,9 @@
 
 (defun read-msg (octet-stream)
   (let ((type (read-byte octet-stream)))
-    (cond ((= type 20)
+    (cond ((= type 6)
+           (read-msg-service-accept octet-stream))
+          ((= type 20)
            (read-msg-kexinit octet-stream))
           ((= type 21)
            (tisch.msg::make-newkeys))

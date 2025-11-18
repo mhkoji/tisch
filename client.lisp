@@ -74,3 +74,24 @@
         (force-output stream))
       (incf (client-send-sequence-number client))))
   (values))
+
+(defun read-packet-encrypted (stream cipher)
+  (let ((packet-length (tisch.transport::sequence->uint
+                        (ironclad:decrypt-message
+                         cipher
+                         (tisch.transport::read-bytes stream 4))
+                        4)))
+    (let ((octets (ironclad:decrypt-message
+                   cipher
+                   (tisch.transport::read-bytes stream packet-length))))
+      (tisch.transport::parse-packet octets packet-length))))
+
+(defun recv-msg-encrypted (client cipher hmac)
+  (declare (ignore hmac))  ;; Todo
+  (let ((stream (client-stream client)))
+    (let ((packet (read-packet-encrypted stream cipher))
+          (mac (tisch.transport::read-bytes stream 20)))
+      (declare (ignore mac))
+      (let ((msg (packet->msg packet)))
+        (incf (client-recv-sequence-number client))
+        msg))))
