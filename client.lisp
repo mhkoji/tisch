@@ -5,7 +5,7 @@
 (defstruct client
   stream
   version
-  (send-sequence-number 0)
+  (send-sequence-number 3)
   (recv-sequence-number 0))
 
 (defun exchange-version (client)
