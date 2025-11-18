@@ -10,3 +10,10 @@
                         :key key
                         :mode :ctr
                         :initialization-vector iv))
+
+(defun make-hmac-sha1 (key)
+  (ironclad:make-hmac key :sha1))
+
+(defun hmac-update-and-digest (hmac octets)
+  (ironclad:update-hmac hmac octets)
+  (ironclad:hmac-digest hmac))

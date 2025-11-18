@@ -131,6 +131,7 @@
                         (:bytes 'write-bytes)
                         (:name-list 'write-name-list)
                         (:boolean 'write-boolean)
+                        (:string 'write-string)
                         (:uint32 'write-uint32)
                         (:mpint 'write-mpint))
                      ,stream ,@args)))
@@ -198,6 +199,12 @@
   (do-write octet-stream
     (:byte 21)))
 
+(defun write-msg-service-request (octet-stream msg)
+  (do-write octet-stream
+    (:byte 5)
+    (:string (babel:string-to-octets
+              (tisch.msg::service-request-service-name msg)))))
+
 
 (defun read-certificates (octet-stream)
   (let ((format (babel:octets-to-string (read-string octet-stream))))
@@ -242,6 +249,10 @@
 (defmethod write-msg ((msg tisch.msg::newkeys)
                       octet-stream)
   (write-msg-newkeys octet-stream))
+
+(defmethod write-msg ((msg tisch.msg::service-request)
+                      octet-stream)
+  (write-msg-service-request octet-stream msg))
 
 
 (defun msg->payload (msg)

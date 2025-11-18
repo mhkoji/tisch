@@ -79,7 +79,22 @@
                   (tisch.client::send-msg
                    client (tisch.msg::make-newkeys))
                   (print
-                   (tisch.client::recv-msg client)))))))))
+                   (tisch.client::recv-msg client))
+
+                  (let* ((ek
+                          (tisch.dh::build-encryption-keys
+                           K exchange-hash exchange-hash))
+                         (cipher
+                          (tisch.cipher::make-aes128-ctr
+                           (tisch.dh::encryption-keys-encryption-key-client-to-server ek)
+                           (tisch.dh::encryption-keys-initial-iv-client-to-server ek)))
+                         (hmac
+                          (tisch.cipher::make-hmac-sha1
+                           (tisch.dh::encryption-keys-integrity-key-client-to-server ek))))
+                    (tisch.client::send-msg-encrypted
+                     client cipher hmac
+                     (tisch.msg::make-service-request
+                      :service-name "ssh-userauth"))))))))))
     (values)
     #+nil
     (loop for byte = (read-byte

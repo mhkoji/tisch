@@ -2,7 +2,11 @@
   (:use :cl))
 (in-package :tisch.client)
 
-(defstruct client stream version)
+(defstruct client
+  stream
+  version
+  (send-sequence-number 0)
+  (recv-sequence-number 0))
 
 (defun exchange-version (client)
   (tisch.transport::exchange-version (client-stream client)
@@ -20,27 +24,18 @@
     ;; (format *debug-io* "Read: ~A ~%" packet)
     packet))
 
-(defun encrypt-packet (cipher packet size)
-  (let ((octets-plain
-          ;; Avoid TYPE-ERROR: The value is not of
-          ;;   type (SIMPLE-ARRAY (UNSIGNED-BYTE 8) (*))
-         (copy-seq
-          (flexi-streams:with-output-to-sequence (out-stream)
-            (tisch.transport::write-packet out-stream packet)))))
-    (let ((octets-encrypted
-           (make-array (length octets-plain)
-                       :element-type '(unsigned-byte 8))))
-      (loop for offset = 0 then (+ offset size)
-            while (< offset (length octets-plain))
-            do (tisch.cipher::encrypt cipher octets-plain octets-encrypted
-                                      :plaintext-start offset
-                                      :plaintext-end (+ offset size)
-                                      :ciphertext-start offset))
+(defun encrypt-packet-octets (cipher octets)
+  (ironclad:encrypt-message cipher octets)
+  #+nil
+  (let ((length (length octets)))
+    (let ((octets-encrypted (make-array length
+                                        :element-type '(unsigned-byte 8))))
+      (tisch.cipher::encrypt cipher octets octets-encrypted)
       octets-encrypted)))
 
-(defun msg->packet (msg)
+(defun msg->packet (msg &key (block-size 8))
   (tisch.msg::create-packet
-   (tisch.transport::msg->payload msg)))
+   (tisch.transport::msg->payload msg) block-size))
 
 (defun packet->msg (packet)
   (tisch.transport::payload->msg
@@ -52,3 +47,30 @@
 
 (defun recv-msg (client)
   (packet->msg (read-packet client)))
+
+
+(defun send-msg-encrypted (client cipher hmac msg)
+  (let ((octets-plain
+         ;; Avoid TYPE-ERROR: The value is not of
+         ;;   type (SIMPLE-ARRAY (UNSIGNED-BYTE 8) (*))
+         (copy-seq
+          (flexi-streams:with-output-to-sequence (out-stream)
+            (tisch.transport::write-packet
+             out-stream (msg->packet msg :block-size 16)))))
+        (sequence-number
+         (client-send-sequence-number client)))
+    (let ((octets-encrypted
+           (encrypt-packet-octets cipher octets-plain))
+          (mac
+           (tisch.cipher::hmac-update-and-digest
+            hmac
+            (copy-seq
+             (flexi-streams:with-output-to-sequence (out-stream)
+               (tisch.transport::write-uint32 out-stream sequence-number)
+               (tisch.transport::write-bytes out-stream octets-plain))))))
+      (let ((stream (client-stream client)))
+        (tisch.transport::write-bytes stream octets-encrypted)
+        (tisch.transport::write-bytes stream mac)
+        (force-output stream))
+      (incf (client-send-sequence-number client))))
+  (values))

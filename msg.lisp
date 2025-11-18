@@ -27,6 +27,9 @@
 
 (defstruct newkeys)
 
+(defstruct service-request
+  service-name)
+
 (defstruct ssh-rsa
   e
   n)
@@ -39,9 +42,8 @@
   payload
   padding)
 
-(let ((block-size 8)
-      (minimum-padding-length 4))
-  (defun create-packet (payload)
+(let ((minimum-padding-length 4))
+  (defun create-packet (payload block-size)
     (let* ((payload-length (length payload))
            (reminder (rem (+ 1 4 payload-length)
                           block-size))
