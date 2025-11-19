@@ -33,6 +33,25 @@
 (defstruct service-accept
   service-name)
 
+(defclass userauth-request ()
+  ((user-name
+    :initarg :user-name
+    :reader userauth-request-user-name)
+   (service-name
+    :initarg :service-name
+    :reader userauth-request-service-name)))
+
+(defclass userauth-request-password (userauth-request)
+  ((password
+    :initarg :password
+    :reader userauth-request-password-password)))
+
+(defun make-userauth-request-password (&key user-name service-name password)
+  (make-instance 'userauth-request-password
+                 :user-name user-name
+                 :service-name service-name
+                 :password password))
+
 (defstruct ssh-rsa
   e
   n)

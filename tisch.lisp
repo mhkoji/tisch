@@ -19,7 +19,7 @@
 
 ;;;
 
-(defun run ()
+(defun run (username password)
   (with-client (client "localhost" 22)
     (let ((server-version
            (tisch.client::exchange-version client)))
@@ -105,6 +105,24 @@
                     (print
                      (tisch.client::recv-msg-encrypted
                       client cipher-server-to-client hmac-server-to-client))
+
+                    (tisch.client::send-msg-encrypted
+                     client
+                     cipher-client-to-server
+                     (tisch.cipher::make-hmac-sha1
+                      (tisch.dh::encryption-keys-integrity-key-client-to-server ek))
+                     (tisch.msg::make-userauth-request-password
+                      :user-name username
+                      :service-name "ssh-connection"
+                      :password password))
+
+                    (print
+                     (tisch.client::recv-packet-encrypted
+                      client
+                      cipher-server-to-client
+                      (tisch.cipher::make-hmac-sha1
+                       (tisch.dh::encryption-keys-integrity-key-server-to-client ek))))
+
                     #+nil
                     (loop for byte = (read-byte
                                       (tisch.client::client-stream client))

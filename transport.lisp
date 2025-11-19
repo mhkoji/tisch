@@ -146,15 +146,17 @@
       (parse-packet octets packet-length))))
 
 (defun read-packet-encrypted (octet-stream cipher hmac sequence-number)
-  (let ((packet (let* ((packet-length
-                        (sequence->uint
-                         (tisch.cipher::decrypt-message
-                          cipher (read-bytes octet-stream 4))
-                         4))
-                       (octets
+  (let ((packet (let ((packet-length
+                       (sequence->uint
                         (tisch.cipher::decrypt-message
-                         cipher (read-bytes octet-stream packet-length))))
-                  (parse-packet octets packet-length)))
+                         cipher (read-bytes octet-stream 4))
+                        4)))
+                  (when (< #xFFFF packet-length)
+                    (error "packet too large: ~A" packet-length))
+                  (let ((octets
+                         (tisch.cipher::decrypt-message
+                          cipher (read-bytes octet-stream packet-length))))
+                    (parse-packet octets packet-length))))
         (mac (read-bytes octet-stream 20)))
       (let ((mac2 (tisch.cipher::hmac-update-and-digest
                    hmac
@@ -249,6 +251,17 @@
     (:string (babel:string-to-octets
               (tisch.msg::service-request-service-name msg)))))
 
+(defun write-msg-userauth-request-password (octet-stream msg)
+  (do-write octet-stream
+    (:byte 50)
+    (:string (babel:string-to-octets
+              (tisch.msg::userauth-request-user-name msg)))
+    (:string (babel:string-to-octets
+              (tisch.msg::userauth-request-service-name msg)))
+    (:string (babel:string-to-octets "password"))
+    (:boolean nil)
+    (:string (babel:string-to-octets
+              (tisch.msg::userauth-request-password-password msg)))))
 
 (defun read-certificates (octet-stream)
   (let ((format (babel:octets-to-string (read-string octet-stream))))
@@ -301,6 +314,10 @@
 (defmethod write-msg ((msg tisch.msg::service-request)
                       octet-stream)
   (write-msg-service-request octet-stream msg))
+
+(defmethod write-msg ((msg tisch.msg::userauth-request-password)
+                      octet-stream)
+  (write-msg-userauth-request-password octet-stream msg))
 
 
 (defun msg->payload (msg)

@@ -14,13 +14,12 @@
                                      (client-version client)))
 
 (defmacro do-client-send ((stream sequence-number client) &body body)
-  `(progn
-     (with-accessors ((,stream client-stream)
-                      (,sequence-number client-send-sequence-number)) ,client
-       ,@body
-       (force-output ,stream)
-       (incf ,sequence-number)
-       (values))))
+  `(with-accessors ((,stream client-stream)
+                    (,sequence-number client-send-sequence-number)) ,client
+     ,@body
+     (force-output ,stream)
+     (incf ,sequence-number)
+     (values)))
 
 (defmacro do-client-recv ((stream sequence-number client) &body body)
   (let ((g (gensym)))
@@ -48,7 +47,6 @@
   (do-client-send (stream sequence-number client)
     (tisch.transport::write-packet-encrypted
      stream cipher hmac (msg->packet msg :block-size 16) sequence-number)))
-     
 
 (defun recv-msg (client)
   (packet->msg
