@@ -57,6 +57,17 @@
   initial-window-size
   maximum-packet-size)
 
+(defstruct channel-open-confirmation
+  recipient-channel
+  sender-channel
+  initial-window-size
+  maximum-packet-size)
+
+(defstruct channel-request-exec
+  recipient-channel
+  want-reply
+  command)
+
 (defstruct ssh-rsa
   e
   n)

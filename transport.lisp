@@ -267,6 +267,14 @@
     (:uint32 (tisch.msg::channel-open-session-initial-window-size msg))
     (:uint32 (tisch.msg::channel-open-session-maximum-packet-size msg))))
 
+(defun write-msg-channel-request-exec (octet-stream msg)
+  (do-write octet-stream
+    (:byte 98)
+    (:uint32 (tisch.msg::channel-request-exec-recipient-channel msg))
+    (:text "exec")
+    (:boolean (tisch.msg::channel-request-exec-want-reply msg))
+    (:text (tisch.msg::channel-request-exec-command msg))))
+
 (defun read-certificates (octet-stream)
   (let ((format (babel:octets-to-string (read-string octet-stream))))
     (cond ((string= format "ssh-rsa")
@@ -301,6 +309,14 @@
        (flexi-streams:with-input-from-sequence (s octets)
          (read-signature s))))))
 
+(defun read-msg-channel-open-confirmation (octet-stream)
+  (with-reader (r octet-stream)
+    (tisch.msg::make-channel-open-confirmation
+     :recipient-channel (r :uint32)
+     :sender-channel (r :uint32)
+     :initial-window-size (r :uint32)
+     :maximum-packet-size (r :uint32))))
+
 (defgeneric write-msg (msg octet-stream))
 
 (defmacro add-delegating-writers (&rest msgs)
@@ -315,7 +331,8 @@
                         tisch.msg::kexdh-init
                         tisch.msg::service-request
                         tisch.msg::userauth-request-password
-                        tisch.msg::channel-open-session)
+                        tisch.msg::channel-open-session
+                        tisch.msg::channel-request-exec)
 
 (defmethod write-msg ((msg tisch.msg::newkeys) octet-stream)
   (write-msg-newkeys octet-stream))
@@ -336,6 +353,8 @@
            (tisch.msg::make-newkeys))
           ((= type 31)
            (read-msg-kexdh-reply octet-stream))
+          ((= type 91)
+           (read-msg-channel-open-confirmation octet-stream))
           (t
            (error "invalid type: ~A" type)))))
 

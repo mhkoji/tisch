@@ -123,7 +123,7 @@
                      client cipher-client-to-server hmac-client-to-server
                      (tisch.msg::make-channel-open-session
                       :sender-channel 1
-                      :initial-window-size 80
+                      :initial-window-size 40000
                       :maximum-packet-size 32678))
 
                     ;; 80
@@ -131,9 +131,34 @@
                      (tisch.client::recv-packet-encrypted
                       client cipher-server-to-client hmac-server-to-client))
 
-                    ;; 91
-                    (print
-                     (tisch.client::recv-packet-encrypted
-                      client cipher-server-to-client hmac-server-to-client))
-                    )))))))))
+                    (let ((channel-open-confirmation
+                           (tisch.client::recv-msg-encrypted
+                            client cipher-server-to-client hmac-server-to-client)))
+                      (print channel-open-confirmation)
+
+                      (tisch.client::send-msg-encrypted
+                       client cipher-client-to-server hmac-client-to-server
+                       (tisch.msg::make-channel-request-exec
+                        :recipient-channel
+                        (tisch.msg::channel-open-confirmation-sender-channel
+                         channel-open-confirmation)
+                        :want-reply t
+                        :command "ls"))
+
+                      ;; 93
+                      (print
+                       (tisch.client::recv-packet-encrypted
+                        client cipher-server-to-client hmac-server-to-client))
+
+                      ;; 99
+                      (print
+                       (tisch.client::recv-packet-encrypted
+                        client cipher-server-to-client hmac-server-to-client))
+
+                      ;; 94
+                      (print
+                       (tisch.client::recv-packet-encrypted
+                        client cipher-server-to-client hmac-server-to-client))
+
+                      ))))))))))
   (values))
