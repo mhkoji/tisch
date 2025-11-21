@@ -172,15 +172,15 @@
   `(progn
      ,@(mapcar (lambda (clause)
                  (destructuring-bind (key &rest args) clause
-                   `(,(ecase key
-                        (:byte 'write-byte)
-                        (:bytes 'write-bytes)
-                        (:name-list 'write-name-list)
-                        (:boolean 'write-boolean)
-                        (:string 'write-string)
-                        (:uint32 'write-uint32)
-                        (:mpint 'write-mpint))
-                     ,stream ,@args)))
+                   (ecase key
+                     (:byte `(write-byte ,stream ,@args))
+                     (:bytes `(write-bytes ,stream ,@args))
+                     (:name-list `(write-name-list ,stream ,@args))
+                     (:text `(write-string ,stream (babel:string-to-octets ,(car args))))
+                     (:boolean `(write-boolean ,stream ,@args))
+                     (:string `(write-string ,stream ,@args))
+                     (:uint32 `(write-uint32 ,stream ,@args))
+                     (:mpint `(write-mpint ,stream ,@args)))))
                clauses)))
 
 (defmacro with-reader ((reader stream) &body body)
@@ -248,20 +248,24 @@
 (defun write-msg-service-request (octet-stream msg)
   (do-write octet-stream
     (:byte 5)
-    (:string (babel:string-to-octets
-              (tisch.msg::service-request-service-name msg)))))
+    (:text (tisch.msg::service-request-service-name msg))))
 
 (defun write-msg-userauth-request-password (octet-stream msg)
   (do-write octet-stream
     (:byte 50)
-    (:string (babel:string-to-octets
-              (tisch.msg::userauth-request-user-name msg)))
-    (:string (babel:string-to-octets
-              (tisch.msg::userauth-request-service-name msg)))
-    (:string (babel:string-to-octets "password"))
+    (:text (tisch.msg::userauth-request-user-name msg))
+    (:text (tisch.msg::userauth-request-service-name msg))
+    (:text "password")
     (:boolean nil)
-    (:string (babel:string-to-octets
-              (tisch.msg::userauth-request-password-password msg)))))
+    (:text (tisch.msg::userauth-request-password-password msg))))
+
+(defun write-msg-channel-open-session (octet-stream msg)
+  (do-write octet-stream
+    (:byte 90)
+    (:text "session")
+    (:uint32 (tisch.msg::channel-open-session-sender-channel msg))
+    (:uint32 (tisch.msg::channel-open-session-initial-window-size msg))
+    (:uint32 (tisch.msg::channel-open-session-maximum-packet-size msg))))
 
 (defun read-certificates (octet-stream)
   (let ((format (babel:octets-to-string (read-string octet-stream))))
@@ -299,25 +303,22 @@
 
 (defgeneric write-msg (msg octet-stream))
 
-(defmethod write-msg ((msg tisch.msg::kexinit)
-                      octet-stream)
-  (write-msg-kexinit octet-stream msg))
+(defmacro add-delegating-writers (&rest msgs)
+  `(progn
+     ,@(mapcar (lambda (msg)
+                 `(defmethod write-msg ((m ,msg) octet-stream)
+                    (,(intern (format nil "WRITE-MSG-~A" msg))
+                      octet-stream m)))
+               msgs)))
 
-(defmethod write-msg ((msg tisch.msg::kexdh-init)
-                      octet-stream)
-  (write-msg-kexdh-init octet-stream msg))
+(add-delegating-writers tisch.msg::kexinit
+                        tisch.msg::kexdh-init
+                        tisch.msg::service-request
+                        tisch.msg::userauth-request-password
+                        tisch.msg::channel-open-session)
 
-(defmethod write-msg ((msg tisch.msg::newkeys)
-                      octet-stream)
+(defmethod write-msg ((msg tisch.msg::newkeys) octet-stream)
   (write-msg-newkeys octet-stream))
-
-(defmethod write-msg ((msg tisch.msg::service-request)
-                      octet-stream)
-  (write-msg-service-request octet-stream msg))
-
-(defmethod write-msg ((msg tisch.msg::userauth-request-password)
-                      octet-stream)
-  (write-msg-userauth-request-password octet-stream msg))
 
 
 (defun msg->payload (msg)

@@ -116,6 +116,7 @@
                       :service-name "ssh-connection"
                       :password password))
 
+                    ;; 52
                     (print
                      (tisch.client::recv-packet-encrypted
                       client
@@ -123,8 +124,30 @@
                       (tisch.cipher::make-hmac-sha1
                        (tisch.dh::encryption-keys-integrity-key-server-to-client ek))))
 
-                    #+nil
-                    (loop for byte = (read-byte
-                                      (tisch.client::client-stream client))
-                          while byte do (print byte)))))))))))
+                    (tisch.client::send-msg-encrypted
+                     client
+                     cipher-client-to-server
+                     (tisch.cipher::make-hmac-sha1
+                      (tisch.dh::encryption-keys-integrity-key-client-to-server ek))
+                     (tisch.msg::make-channel-open-session
+                      :sender-channel 1
+                      :initial-window-size 80
+                      :maximum-packet-size 32678))
+
+                    ;; 80
+                    (print
+                     (tisch.client::recv-packet-encrypted
+                      client
+                      cipher-server-to-client
+                      (tisch.cipher::make-hmac-sha1
+                       (tisch.dh::encryption-keys-integrity-key-server-to-client ek))))
+                    ;; 91
+                    (print
+                     (tisch.client::recv-packet-encrypted
+                      client
+                      cipher-server-to-client
+                      (tisch.cipher::make-hmac-sha1
+                       (tisch.dh::encryption-keys-integrity-key-server-to-client ek))))
+
+                    )))))))))
   (values))

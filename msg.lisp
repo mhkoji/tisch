@@ -52,6 +52,11 @@
                  :service-name service-name
                  :password password))
 
+(defstruct channel-open-session
+  sender-channel
+  initial-window-size
+  maximum-packet-size)
+
 (defstruct ssh-rsa
   e
   n)
