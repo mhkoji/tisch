@@ -102,15 +102,13 @@
                      client cipher-client-to-server hmac-client-to-server
                      (tisch.msg::make-service-request
                       :service-name "ssh-userauth"))
+
                     (print
                      (tisch.client::recv-msg-encrypted
                       client cipher-server-to-client hmac-server-to-client))
 
                     (tisch.client::send-msg-encrypted
-                     client
-                     cipher-client-to-server
-                     (tisch.cipher::make-hmac-sha1
-                      (tisch.dh::encryption-keys-integrity-key-client-to-server ek))
+                     client cipher-client-to-server hmac-client-to-server
                      (tisch.msg::make-userauth-request-password
                       :user-name username
                       :service-name "ssh-connection"
@@ -119,16 +117,10 @@
                     ;; 52
                     (print
                      (tisch.client::recv-packet-encrypted
-                      client
-                      cipher-server-to-client
-                      (tisch.cipher::make-hmac-sha1
-                       (tisch.dh::encryption-keys-integrity-key-server-to-client ek))))
+                      client cipher-server-to-client hmac-server-to-client))
 
                     (tisch.client::send-msg-encrypted
-                     client
-                     cipher-client-to-server
-                     (tisch.cipher::make-hmac-sha1
-                      (tisch.dh::encryption-keys-integrity-key-client-to-server ek))
+                     client cipher-client-to-server hmac-client-to-server
                      (tisch.msg::make-channel-open-session
                       :sender-channel 1
                       :initial-window-size 80
@@ -137,17 +129,11 @@
                     ;; 80
                     (print
                      (tisch.client::recv-packet-encrypted
-                      client
-                      cipher-server-to-client
-                      (tisch.cipher::make-hmac-sha1
-                       (tisch.dh::encryption-keys-integrity-key-server-to-client ek))))
+                      client cipher-server-to-client hmac-server-to-client))
+
                     ;; 91
                     (print
                      (tisch.client::recv-packet-encrypted
-                      client
-                      cipher-server-to-client
-                      (tisch.cipher::make-hmac-sha1
-                       (tisch.dh::encryption-keys-integrity-key-server-to-client ek))))
-
+                      client cipher-server-to-client hmac-server-to-client))
                     )))))))))
   (values))

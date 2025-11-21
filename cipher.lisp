@@ -11,9 +11,14 @@
                         :mode :ctr
                         :initialization-vector iv))
 
+(defstruct hmac
+  key name)
+
 (defun make-hmac-sha1 (key)
-  (ironclad:make-hmac key :sha1))
+  (make-hmac :key key :name :sha1))
 
 (defun hmac-update-and-digest (hmac octets)
-  (ironclad:update-hmac hmac octets)
-  (ironclad:hmac-digest hmac))
+  (let ((hmac-impl (ironclad:make-hmac (hmac-key hmac)
+                                       (hmac-name hmac))))
+    (ironclad:update-hmac hmac-impl octets)
+    (ironclad:hmac-digest hmac-impl)))
